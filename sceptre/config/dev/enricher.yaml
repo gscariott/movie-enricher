@@ -1,0 +1,10 @@
+template:
+  path: enricher.yaml.j2
+  type: file
+
+parameters:
+  ProjectName: !stack_attr project_code
+  FilterLambdaCode: !file_contents ../src/filter.py
+  S3Url: !environment_variable S3_URL
+sceptre_user_data:
+  stack_parameters: !stack_attr parameters
