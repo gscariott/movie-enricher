@@ -115,7 +115,10 @@ def lambda_handler(event, context):
 
       for movie in movies_from_sqs:
         imdb_id = movie.get('id')
-        omdb_details = fetch_movie_details(imdb_id)
+        for attempt in range(3):
+          omdb_details = fetch_movie_details(imdb_id)
+          if omdb_details.get('Response') != 'False': break
+          if attempt < 2: time.sleep(2)
         enriched_movie = enrich_movie_data(movie, omdb_details)
         all_enriched_movies.append(enriched_movie)
 
