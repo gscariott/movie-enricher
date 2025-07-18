@@ -7,6 +7,7 @@ This project provides a serverless solution for filtering and enriching movie da
 * **Serverless Architecture:** Built entirely on AWS Lambda, S3, and SQS for a scalable and cost-effective solution.
 * **Automated Data Pipeline:** Fetches, filters, and enriches movie data automatically.
 * **Infrastructure as Code:** Uses Sceptre for automated deployment and management of AWS resources.
+* **Private Key Handling:** Uses a local `.env` file for local configs and uploads the OMDb API key as a secret to AWS Secrets Manager.
 * **Data Transformation in Python**: Having the Data Warehouse concept in mind, the enriched data is structured to be easier to filter and manipulate.
 
 ## Architecture Overview

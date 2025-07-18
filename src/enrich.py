@@ -6,8 +6,9 @@ from urllib import request, error
 from datetime import datetime
 
 s3_client = boto3.client('s3')
+secrets_client = boto3.client('secretsmanager')
 
-OMDB_API_KEY = os.environ.get('OMDB_API_KEY')
+OMDB_SECRET_NAME = os.environ.get('OMDB_SECRET_NAME')
 S3_BUCKET_NAME = os.environ.get('S3_BUCKET_ARN').split(":::")[-1]
 
 logger = logging.getLogger()
@@ -15,8 +16,15 @@ logger.setLevel(logging.INFO)
 
 def fetch_movie_details(imdb_id):
   """Fetches detailed movie information from the OMDb API."""
-
-  api_url = f"https://www.omdbapi.com/?apikey={OMDB_API_KEY}&i={imdb_id}"
+  try:
+    secret_response = secrets_client.get_secret_value(SecretId=OMDB_SECRET_NAME)
+    secret = json.loads(secret_response['SecretString'])
+    omdb_api_key = secret.get('OMDB_API_KEY')
+  except Exception as e:
+    logger.error(f"Failed to retrieve secret '{OMDB_SECRET_NAME}': {e}")
+    raise e
+  
+  api_url = f"https://www.omdbapi.com/?apikey={omdb_api_key}&i={imdb_id}"
   
   try:
     with request.urlopen(api_url, timeout=10) as response:

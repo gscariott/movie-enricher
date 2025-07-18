@@ -90,6 +90,15 @@ Resources:
     UpdateReplacePolicy: Retain
     Properties:
       BucketName: !Sub "${AWS::AccountId}-${AWS::Region}-${ProjectName}-enriched-movies"
+  
+  # Uploads the OMDb API key as a secret on AWS Secrets Manager
+  OMDBApiSecret:
+    Type: "AWS::SecretsManager::Secret"
+    Properties:
+      Name: "movie-enricher/secrets"
+      SecretString: !Sub
+        - '{"OMDB_API_KEY": "${OMDBKeyValue}"}'
+        - OMDBKeyValue: !Ref OMDBKey
 
   # IAM Role with least-privilege permissions for the EnrichLambda function
   EnrichLambdaExecutionRole:
@@ -124,6 +133,9 @@ Resources:
                   - sqs:DeleteMessage
                   - sqs:GetQueueAttributes
                 Resource: !GetAtt TopMoviesQueue.Arn
+              - Effect: "Allow"
+                Action: "secretsmanager:GetSecretValue"
+                Resource: !Ref OMDBApiSecret
 
   # Lambda that reads messages from TopMoviesQueue, enrich the
   # movies' data and uploads them to EnrichedMoviesS3
@@ -141,7 +153,7 @@ Resources:
       Environment:
         Variables:
           S3_BUCKET_ARN: !GetAtt EnrichedMoviesS3.Arn
-          OMDB_API_KEY: !Ref OMDBKey
+          OMDB_SECRET_NAME: !Ref OMDBApiSecret
 
   # Event Source Mapping to link the SQS Queue to the Enrich Lambda
   SqsTriggerForEnrichLambda:
