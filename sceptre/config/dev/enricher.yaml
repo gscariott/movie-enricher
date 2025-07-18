@@ -4,8 +4,10 @@ template:
 
 parameters:
   ProjectName: !stack_attr project_code
-  FilterLambdaCode: !file_contents ../src/filter.py
   S3Url: !environment_variable S3_URL
+  OMDBKey: !environment_variable OMDB_API_KEY
+  ArtifactBucketName: !environment_variable ARTIFACT_BUCKET_NAME
+
 sceptre_user_data:
   stack_parameters: !stack_attr parameters
 

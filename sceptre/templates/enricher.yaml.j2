@@ -8,6 +8,9 @@ Parameters:
   S3Url:
     Type: String
     Description: The full public URL of the S3 object containing the movie list.
+  OMDBKey:
+    Type: String
+    Description: The OMDB API key used to enrich the movies' data.
   ArtifactBucketName:
     Type: String
     Description: "Artifacts S3 Bucket name"
@@ -79,3 +82,71 @@ Resources:
           S3_BUCKET_NAME: "{{ bucket_name }}"
           S3_OBJECT_KEY: "{{ object_key }}"
           SQS_QUEUE_URL: !Ref TopMoviesQueue
+
+  # S3 Bucket that stores the enriched Top 10 movies data
+  EnrichedMoviesS3:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub "${AWS::AccountId}-${AWS::Region}-${ProjectName}-enriched-movies"
+
+  # IAM Role with least-privilege permissions for the EnrichLambda function
+  EnrichLambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-enrich-lambda-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub "${ProjectName}-enrich-lambda-policy"
+          PolicyDocument: 
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: "arn:aws:logs:*:*:*"
+              - Effect: Allow
+                Action:
+                  - s3:PutObject
+                Resource: !Sub "${EnrichedMoviesS3.Arn}/*"
+              - Effect: Allow
+                Action:
+                  - sqs:ReceiveMessage
+                  - sqs:DeleteMessage
+                  - sqs:GetQueueAttributes
+                Resource: !GetAtt TopMoviesQueue.Arn
+
+  # Lambda that reads messages from TopMoviesQueue, enrich the
+  # movies' data and uploads them to EnrichedMoviesS3
+  EnrichLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-enrich"
+      Handler: enrich.lambda_handler
+      Runtime: python3.13
+      Role: !GetAtt EnrichLambdaExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref ArtifactBucketName
+        S3Key: "enrich_lambda.zip"      
+      Timeout: 120
+      Environment:
+        Variables:
+          S3_BUCKET_ARN: !GetAtt EnrichedMoviesS3.Arn
+          OMDB_API_KEY: !Ref OMDBKey
+
+  SqsTriggerForEnrichLambda:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 1
+      EventSourceArn: !GetAtt TopMoviesQueue.Arn
+      FunctionName: !GetAtt EnrichLambda.Arn
+      Enabled: true
