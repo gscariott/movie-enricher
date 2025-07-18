@@ -143,6 +143,7 @@ Resources:
           S3_BUCKET_ARN: !GetAtt EnrichedMoviesS3.Arn
           OMDB_API_KEY: !Ref OMDBKey
 
+  # Event Source Mapping to link the SQS Queue to the Enrich Lambda
   SqsTriggerForEnrichLambda:
     Type: AWS::Lambda::EventSourceMapping
     Properties:
@@ -150,3 +151,38 @@ Resources:
       EventSourceArn: !GetAtt TopMoviesQueue.Arn
       FunctionName: !GetAtt EnrichLambda.Arn
       Enabled: true
+
+  # IAM Role for the scheduler that runs FilterLambda
+  SchedulerExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${ProjectName}-scheduler-role"
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub "${ProjectName}-scheduler-policy"
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - lambda:InvokeFunction
+                Resource: !GetAtt FilterLambda.Arn
+        
+  # The EventBridge Scheduler to run FilterLambda daily
+  DailyLambdaSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: !Sub "${ProjectName}-filter-lambda-schedule"
+      ScheduleExpression: 'cron(0 13 * * ? *)'
+      State: ENABLED
+      FlexibleTimeWindow:
+        Mode: 'OFF'
+      Target:
+        Arn: !GetAtt FilterLambda.Arn
+        RoleArn: !GetAtt SchedulerExecutionRole.Arn
