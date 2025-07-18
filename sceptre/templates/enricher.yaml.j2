@@ -5,12 +5,12 @@ Parameters:
   ProjectName:
     Type: String
     Description: "The name of the project, used to prefix resource names."
-  FilterLambdaCode:
-    Type: String
-    Description: "The inline code for the Filter Lambda function."
   S3Url:
     Type: String
     Description: The full public URL of the S3 object containing the movie list.
+  ArtifactBucketName:
+    Type: String
+    Description: "Artifacts S3 Bucket name"
 
 # Jinja2 parsing block to get the bucket and object names from the S3Url
 {% set url_parts = sceptre_user_data.stack_parameters.S3Url.split('/') %}
@@ -67,11 +67,12 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: !Sub "${ProjectName}-filter"
-      Handler: index.lambda_handler
+      Handler: filter.lambda_handler
       Runtime: python3.13
       Role: !GetAtt FilterLambdaExecutionRole.Arn
       Code:
-        ZipFile: !Ref FilterLambdaCode
+        S3Bucket: !Ref ArtifactBucketName
+        S3Key: "filter_lambda.zip"  
       Timeout: 30
       Environment:
         Variables:

@@ -1,0 +1,13 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Creates a S3 bucket for the zipped Python files to be used on the Lambda functions"
+
+Parameters:
+  ArtifactBucketName:
+    Type: String
+    Description: "Artifacts S3 Bucket name"
+
+Resources:
+  ArtifactBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref ArtifactBucketName
